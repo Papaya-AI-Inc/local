@@ -72,20 +72,22 @@ function validateDateFormat(value: string): string {
 }
 
 function validateTimestampFormat(value: string): string {
-  const formats = [
-    /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/,
-    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/,
-    /^\d{4}-\d{2}-\d{2}$/,
-  ];
-  const isValid = formats.some(format => format.test(value));
-  if (!isValid) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}):(\d{2}))?$/.exec(value);
+  if (!match) {
     throw new Error(`Invalid timestamp format: ${value}`);
   }
-  const date = new Date(value);
-  if (isNaN(date.getTime())) {
+  // Read the fields as written. new Date() would treat a date-time without an offset as
+  // local time, so toISOString() would shift it by the machine's UTC offset.
+  const [, year, month, day, hour = '00', minute = '00', second = '00'] = match;
+  const timestamp = `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+  const date = new Date(0);
+  date.setUTCFullYear(Number(year), Number(month) - 1, Number(day));
+  date.setUTCHours(Number(hour), Number(minute), Number(second));
+  // Out of range fields roll over (Feb 30 becomes Mar 1), so a round trip catches them.
+  if (date.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '') !== timestamp) {
     throw new Error(`Invalid timestamp value: ${value}`);
   }
-  return date.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '');
+  return timestamp;
 }
 
 function validateInteger(value: string): number {
