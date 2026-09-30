@@ -88,12 +88,13 @@ function validateTimestampFormat(value: string): string {
   return date.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '');
 }
 
-function validateInteger(value: string): number {
-  const num = parseInt(value, 10);
-  if (isNaN(num)) {
+function validateInteger(value: string): string {
+  // parseInt would stop at the first non digit ("12abc" is 12) and round anything past 2^53.
+  const trimmed = value.trim();
+  if (!/^[+-]?\d+$/.test(trimmed)) {
     throw new Error(`Invalid integer value: ${value}`);
   }
-  return num;
+  return BigInt(trimmed).toString();
 }
 
 function formatListParameter(value: string): string {
@@ -123,10 +124,10 @@ export function formatParameterValue(param: QueryParameter): string {
       return `TIMESTAMP '${validateTimestampFormat(value)}'`;
     case ParameterType.Int:
     case ParameterType.Long:
-      return String(validateInteger(value));
+      return validateInteger(value);
     case ParameterType.Double: {
-      const num = parseFloat(value);
-      if (isNaN(num)) {
+      const num = value.trim() === '' ? NaN : Number(value);
+      if (!Number.isFinite(num)) {
         throw new Error(`Invalid double value: ${value}`);
       }
       return String(num);
